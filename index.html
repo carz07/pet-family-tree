@@ -7,36 +7,37 @@
   <style>
     body {
       font-family: sans-serif;
-      max-width: 800px;
+      max-width: 1000px;
       margin: 0 auto;
       padding: 20px;
       background: #f9f9f9;
     }
     h1 {
+      text-align: center;
       color: #333;
     }
-    .form {
+    .form-section {
       background: white;
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
+      margin-bottom: 30px;
     }
     label {
       display: block;
       margin-top: 10px;
+      font-weight: bold;
     }
-    input, textarea, select {
+    input, select {
       width: 100%;
       padding: 8px;
       margin-top: 4px;
       border: 1px solid #ccc;
       border-radius: 4px;
-      box-sizing: border-box;
     }
     button {
-      margin-top: 10px;
-      padding: 8px 16px;
+      margin-top: 15px;
+      padding: 10px 15px;
       background: #4CAF50;
       color: white;
       border: none;
@@ -46,212 +47,265 @@
     button:hover {
       background: #45a049;
     }
-    button.danger {
-      background: #f44336;
+    .family-tree {
+      margin-top: 30px;
     }
-    button.danger:hover {
-      background: #d32f2f;
-    }
-    .tree {
+    .cat-node {
       background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin: 4px 0;
+      display: inline-block;
+      min-width: 180px;
     }
-    .pet-node {
+    .cat-node.male {
+      border-left: 4px solid #64b5f6;
+    }
+    .cat-node.female {
+      border-left: 4px solid #f48fb1;
+    }
+    .generation-label {
+      font-size: 0.9em;
+      color: #666;
+      margin-left: 10px;
+    }
+    .relationship-list {
       margin-left: 20px;
-      margin-top: 10px;
-      padding: 10px;
-      border-left: 3px solid #4CAF50;
-      background: #f0f8f0;
-    }
-    .pet-name {
-      font-weight: bold;
-    }
-    .pet-details {
       font-size: 0.9em;
       color: #555;
-      margin-top: 4px;
     }
-    .actions {
-      margin-top: 8px;
+    ul.tree {
+      list-style-type: none;
+      padding-left: 20px;
+      position: relative;
     }
-    .actions button {
-      margin-right: 8px;
-      font-size: 0.85em;
-      padding: 4px 8px;
+    ul.tree li {
+      position: relative;
+      margin: 10px 0;
+    }
+    ul.tree li::before {
+      content: "";
+      position: absolute;
+      top: -10px;
+      left: -20px;
+      border-left: 1px solid #ccc;
+      border-bottom: 1px solid #ccc;
+      width: 20px;
+      height: 15px;
+    }
+    ul.tree li:first-child::before {
+      border-left: none;
     }
   </style>
 </head>
 <body>
-  <h1>🐾 Pet Family Tree</h1>
+  <h1>🐱 Pet Family Tree</h1>
 
-  <div class="form">
-    <h2>Add a Pet</h2>
-    <label>Name: <input type="text" id="petName"></label>
-    <label>Species/Breed: <input type="text" id="petBreed"></label>
-    <label>Birth Date: <input type="date" id="petBirthDate"></label>
-    <label>Relationship to existing pet:
-      <select id="relationshipTo">
+  <div class="form-section">
+    <h2>Add a Cat</h2>
+    <form id="add-cat-form">
+      <label>Name:</label>
+      <input type="text" id="cat-name" required>
+
+      <label>Gender:</label>
+      <select id="cat-gender" required>
         <option value="">-- Select --</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
       </select>
-    </label>
-    <label>Relationship type:
-      <select id="relationshipType">
-        <option value="parent">Parent</option>
-        <option value="child">Child</option>
-        <option value="sibling">Sibling</option>
-        <option value="mate">Mate</option>
-        <option value="other">Other</option>
+
+      <label>Mother:</label>
+      <select id="cat-mother">
+        <option value="">-- None --</option>
       </select>
-    </label>
-    <label>Notes: <textarea id="petNotes" rows="3"></textarea></label>
-    <button onclick="addPet()">Add Pet</button>
+
+      <label>Father:</label>
+      <select id="cat-father">
+        <option value="">-- None --</option>
+      </select>
+
+      <button type="submit">Add Cat</button>
+    </form>
   </div>
 
-  <div class="tree">
+  <div class="form-section">
     <h2>Family Tree</h2>
-    <div id="treeRoot"></div>
-    <div style="margin-top: 20px;">
-      <button onclick="clearAllData()" class="danger">Clear All Data</button>
-      <small style="color: #666;">(This cannot be undone)</small>
+    <div id="family-tree" class="family-tree">
+      <!-- Tree will be rendered here -->
     </div>
   </div>
 
   <script>
-    // Load pets from localStorage or start fresh
-    let pets = JSON.parse(localStorage.getItem('petFamilyTree')) || [];
-    let nextId = Math.max(...pets.map(p => p.id), 0) + 1;
+    // Simple in-memory storage (replace with localStorage if you want persistence)
+    let cats = JSON.parse(localStorage.getItem('petFamilyCats')) || [];
 
-    function savePets() {
-      localStorage.setItem('petFamilyTree', JSON.stringify(pets));
+    // DOM elements
+    const form = document.getElementById('add-cat-form');
+    const nameInput = document.getElementById('cat-name');
+    const genderSelect = document.getElementById('cat-gender');
+    const motherSelect = document.getElementById('cat-mother');
+    const fatherSelect = document.getElementById('cat-father');
+    const treeContainer = document.getElementById('family-tree');
+
+    // Generate a simple ID
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
-    function addPet() {
-      const name = document.getElementById('petName').value.trim();
-      const breed = document.getElementById('petBreed').value.trim();
-      const birthDate = document.getElementById('petBirthDate').value;
-      const relationshipToId = document.getElementById('relationshipTo').value;
-      const relationshipType = document.getElementById('relationshipType').value;
-      const notes = document.getElementById('petNotes').value.trim();
+    // Update parent dropdowns
+    function updateParentDropdowns() {
+      motherSelect.innerHTML = '<option value="">-- None --</option>';
+      fatherSelect.innerHTML = '<option value="">-- None --</option>';
 
-      if (!name) {
-        alert('Please enter a name.');
+      cats.forEach(cat => {
+        if (cat.gender === 'female') {
+          motherSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+        }
+        if (cat.gender === 'male') {
+          fatherSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+        }
+      });
+    }
+
+    // Calculate generation based on parents
+    function calculateGeneration(motherId, fatherId) {
+      if (!motherId && !fatherId) return 0; // root cat
+
+      const mother = cats.find(c => c.id === motherId);
+      const father = cats.find(c => c.id === fatherId);
+
+      const motherGen = mother ? mother.generation : 0;
+      const fatherGen = father ? father.generation : 0;
+
+      return Math.max(motherGen, fatherGen) + 1;
+    }
+
+    // Add a new cat
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const name = nameInput.value.trim();
+      const gender = genderSelect.value;
+      const motherId = motherSelect.value || null;
+      const fatherId = fatherSelect.value || null;
+
+      if (!name || !gender) {
+        alert('Please enter name and gender.');
         return;
       }
 
-      const pet = {
-        id: nextId++,
+      const generation = calculateGeneration(motherId, fatherId);
+
+      const newCat = {
+        id: generateId(),
         name,
-        breed,
-        birthDate,
-        notes,
-        relationships: []
+        gender,
+        motherId,
+        fatherId,
+        generation,
+        childrenIds: []
       };
 
-      if (relationshipToId) {
-        pet.relationships.push({
-          to: parseInt(relationshipToId),
-          type: relationshipType
-        });
+      // Add to parents' childrenIds
+      if (motherId) {
+        const mother = cats.find(c => c.id === motherId);
+        if (mother) mother.childrenIds.push(newCat.id);
+      }
+      if (fatherId) {
+        const father = cats.find(c => c.id === fatherId);
+        if (father) father.childrenIds.push(newCat.id);
       }
 
-      pets.push(pet);
-      savePets();
-      updateRelationshipSelect();
-      renderTree();
-      clearForm();
+      cats.push(newCat);
+      localStorage.setItem('petFamilyCats', JSON.stringify(cats));
+
+      // Reset form
+      nameInput.value = '';
+      genderSelect.value = '';
+      motherSelect.value = '';
+      fatherSelect.value = '';
+
+      updateParentDropdowns();
+      renderFamilyTree();
+    });
+
+    // Get children of a cat
+    function getChildren(cat) {
+      return cats.filter(c => c.motherId === cat.id || c.fatherId === cat.id);
     }
 
-    function updateRelationshipSelect() {
-      const select = document.getElementById('relationshipTo');
-      select.innerHTML = '<option value="">-- Select --</option>';
-      pets.forEach(pet => {
-        const option = document.createElement('option');
-        option.value = pet.id;
-        option.textContent = pet.name;
-        select.appendChild(option);
-      });
+    // Get siblings of a cat
+    function getSiblings(cat) {
+      return cats.filter(c =>
+        c.id !== cat.id &&
+        (c.motherId === cat.motherId || c.fatherId === cat.fatherId)
+      );
     }
 
-    function renderTree() {
-      const rootEl = document.getElementById('treeRoot');
-      rootEl.innerHTML = '';
+    // Render a cat node
+    function renderCatNode(cat) {
+      const children = getChildren(cat);
+      const siblings = getSiblings(cat);
 
-      if (pets.length === 0) {
-        rootEl.innerHTML = '<p>No pets added yet.</p>';
+      const sons = children.filter(c => c.gender === 'male');
+      const daughters = children.filter(c => c.gender === 'female');
+      const brothers = siblings.filter(c => c.gender === 'male');
+      const sisters = siblings.filter(c => c.gender === 'female');
+
+      let html = `
+        <div class="cat-node ${cat.gender}">
+          <strong>${cat.name}</strong> (${cat.gender})
+          <span class="generation-label">Gen ${cat.generation}</span>
+          <div class="relationship-list">
+      `;
+
+      if (cat.motherId) {
+        const mother = cats.find(c => c.id === cat.motherId);
+        if (mother) html += `Mother: ${mother.name}<br>`;
+      }
+      if (cat.fatherId) {
+        const father = cats.find(c => c.id === cat.fatherId);
+        if (father) html += `Father: ${father.name}<br>`;
+      }
+      if (sons.length > 0) html += `Sons: ${sons.map(s => s.name).join(', ')}<br>`;
+      if (daughters.length > 0) html += `Daughters: ${daughters.map(d => d.name).join(', ')}<br>`;
+      if (brothers.length > 0) html += `Brothers: ${brothers.map(b => b.name).join(', ')}<br>`;
+      if (sisters.length > 0) html += `Sisters: ${sisters.map(s => s.name).join(', ')}<br>`;
+
+      html += `</div></div>`;
+
+      if (children.length > 0) {
+        html += '<ul class="tree">';
+        children.forEach(child => {
+          html += `<li>${renderCatNode(child)}</li>`;
+        });
+        html += '</ul>';
+      }
+
+      return html;
+    }
+
+    // Render the whole family tree
+    function renderFamilyTree() {
+      const rootCats = cats.filter(cat => !cat.motherId && !cat.fatherId);
+      if (rootCats.length === 0) {
+        treeContainer.innerHTML = '<p>No cats added yet.</p>';
         return;
       }
 
-      // Simple flat list for now; you could build a proper tree later
-      pets.forEach(pet => {
-        const node = document.createElement('div');
-        node.className = 'pet-node';
-        node.innerHTML = `
-          <div class="pet-name">${pet.name}</div>
-          <div class="pet-details">
-            ${pet.breed ? `Breed/Species: ${pet.breed}<br>` : ''}
-            ${pet.birthDate ? `Born: ${pet.birthDate}<br>` : ''}
-            ${pet.notes ? `Notes: ${pet.notes}<br>` : ''}
-            ${pet.relationships.length ? `Relationships: ${pet.relationships.map(r => {
-              const other = pets.find(p => p.id === r.to);
-              return other ? `${other.name} (${r.type})` : '?';
-            }).join(', ')}` : ''}
-          </div>
-          <div class="actions">
-            <button onclick="editPet(${pet.id})">Edit</button>
-            <button onclick="deletePet(${pet.id})" class="danger">Delete</button>
-          </div>
-        `;
-        rootEl.appendChild(node);
+      let html = '<ul class="tree">';
+      rootCats.forEach(cat => {
+        html += `<li>${renderCatNode(cat)}</li>`;
       });
+      html += '</ul>';
+
+      treeContainer.innerHTML = html;
     }
 
-    function editPet(id) {
-      const pet = pets.find(p => p.id === id);
-      if (!pet) return;
-
-      document.getElementById('petName').value = pet.name;
-      document.getElementById('petBreed').value = pet.breed || '';
-      document.getElementById('petBirthDate').value = pet.birthDate || '';
-      document.getElementById('petNotes').value = pet.notes || '';
-
-      // For simplicity, we'll just delete and re-add on edit
-      // In a more advanced version, you'd have an "update" mode
-      if (confirm(`Edit "${pet.name}"? This will delete the old entry and let you re-add it.`)) {
-        deletePet(id);
-      }
-    }
-
-    function deletePet(id) {
-      if (!confirm('Are you sure you want to delete this pet?')) return;
-      pets = pets.filter(p => p.id !== id);
-      savePets();
-      updateRelationshipSelect();
-      renderTree();
-    }
-
-    function clearAllData() {
-      if (!confirm('Clear ALL pet data? This cannot be undone.')) return;
-      pets = [];
-      nextId = 1;
-      savePets();
-      updateRelationshipSelect();
-      renderTree();
-    }
-
-    function clearForm() {
-      document.getElementById('petName').value = '';
-      document.getElementById('petBreed').value = '';
-      document.getElementById('petBirthDate').value = '';
-      document.getElementById('relationshipTo').value = '';
-      document.getElementById('relationshipType').value = 'parent';
-      document.getElementById('petNotes').value = '';
-    }
-
-    // Initial setup
-    updateRelationshipSelect();
-    renderTree();
+    // Initialize
+    updateParentDropdowns();
+    renderFamilyTree();
   </script>
 </body>
 </html>
