@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pet Family Tree</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    h1 {
+      color: #333;
+    }
+    .form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button.danger {
+      background: #f44336;
+    }
+    button.danger:hover {
+      background: #d32f2f;
+    }
+    .tree {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .pet-node {
+      margin-left: 20px;
+      margin-top: 10px;
+      padding: 10px;
+      border-left: 3px solid #4CAF50;
+      background: #f0f8f0;
+    }
+    .pet-name {
+      font-weight: bold;
+    }
+    .pet-details {
+      font-size: 0.9em;
+      color: #555;
+      margin-top: 4px;
+    }
+    .actions {
+      margin-top: 8px;
+    }
+    .actions button {
+      margin-right: 8px;
+      font-size: 0.85em;
+      padding: 4px 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐾 Pet Family Tree</h1>
+
+  <div class="form">
+    <h2>Add a Pet</h2>
+    <label>Name: <input type="text" id="petName"></label>
+    <label>Species/Breed: <input type="text" id="petBreed"></label>
+    <label>Birth Date: <input type="date" id="petBirthDate"></label>
+    <label>Relationship to existing pet:
+      <select id="relationshipTo">
+        <option value="">-- Select --</option>
+      </select>
+    </label>
+    <label>Relationship type:
+      <select id="relationshipType">
+        <option value="parent">Parent</option>
+        <option value="child">Child</option>
+        <option value="sibling">Sibling</option>
+        <option value="mate">Mate</option>
+        <option value="other">Other</option>
+      </select>
+    </label>
+    <label>Notes: <textarea id="petNotes" rows="3"></textarea></label>
+    <button onclick="addPet()">Add Pet</button>
+  </div>
+
+  <div class="tree">
+    <h2>Family Tree</h2>
+    <div id="treeRoot"></div>
+    <div style="margin-top: 20px;">
+      <button onclick="clearAllData()" class="danger">Clear All Data</button>
+      <small style="color: #666;">(This cannot be undone)</small>
+    </div>
+  </div>
+
+  <script>
+    // Load pets from localStorage or start fresh
+    let pets = JSON.parse(localStorage.getItem('petFamilyTree')) || [];
+    let nextId = Math.max(...pets.map(p => p.id), 0) + 1;
+
+    function savePets() {
+      localStorage.setItem('petFamilyTree', JSON.stringify(pets));
+    }
+
+    function addPet() {
+      const name = document.getElementById('petName').value.trim();
+      const breed = document.getElementById('petBreed').value.trim();
+      const birthDate = document.getElementById('petBirthDate').value;
+      const relationshipToId = document.getElementById('relationshipTo').value;
+      const relationshipType = document.getElementById('relationshipType').value;
+      const notes = document.getElementById('petNotes').value.trim();
+
+      if (!name) {
+        alert('Please enter a name.');
+        return;
+      }
+
+      const pet = {
+        id: nextId++,
+        name,
+        breed,
+        birthDate,
+        notes,
+        relationships: []
+      };
+
+      if (relationshipToId) {
+        pet.relationships.push({
+          to: parseInt(relationshipToId),
+          type: relationshipType
+        });
+      }
+
+      pets.push(pet);
+      savePets();
+      updateRelationshipSelect();
+      renderTree();
+      clearForm();
+    }
+
+    function updateRelationshipSelect() {
+      const select = document.getElementById('relationshipTo');
+      select.innerHTML = '<option value="">-- Select --</option>';
+      pets.forEach(pet => {
+        const option = document.createElement('option');
+        option.value = pet.id;
+        option.textContent = pet.name;
+        select.appendChild(option);
+      });
+    }
+
+    function renderTree() {
+      const rootEl = document.getElementById('treeRoot');
+      rootEl.innerHTML = '';
+
+      if (pets.length === 0) {
+        rootEl.innerHTML = '<p>No pets added yet.</p>';
+        return;
+      }
+
+      // Simple flat list for now; you could build a proper tree later
+      pets.forEach(pet => {
+        const node = document.createElement('div');
+        node.className = 'pet-node';
+        node.innerHTML = `
+          <div class="pet-name">${pet.name}</div>
+          <div class="pet-details">
+            ${pet.breed ? `Breed/Species: ${pet.breed}<br>` : ''}
+            ${pet.birthDate ? `Born: ${pet.birthDate}<br>` : ''}
+            ${pet.notes ? `Notes: ${pet.notes}<br>` : ''}
+            ${pet.relationships.length ? `Relationships: ${pet.relationships.map(r => {
+              const other = pets.find(p => p.id === r.to);
+              return other ? `${other.name} (${r.type})` : '?';
+            }).join(', ')}` : ''}
+          </div>
+          <div class="actions">
+            <button onclick="editPet(${pet.id})">Edit</button>
+            <button onclick="deletePet(${pet.id})" class="danger">Delete</button>
+          </div>
+        `;
+        rootEl.appendChild(node);
+      });
+    }
+
+    function editPet(id) {
+      const pet = pets.find(p => p.id === id);
+      if (!pet) return;
+
+      document.getElementById('petName').value = pet.name;
+      document.getElementById('petBreed').value = pet.breed || '';
+      document.getElementById('petBirthDate').value = pet.birthDate || '';
+      document.getElementById('petNotes').value = pet.notes || '';
+
+      // For simplicity, we'll just delete and re-add on edit
+      // In a more advanced version, you'd have an "update" mode
+      if (confirm(`Edit "${pet.name}"? This will delete the old entry and let you re-add it.`)) {
+        deletePet(id);
+      }
+    }
+
+    function deletePet(id) {
+      if (!confirm('Are you sure you want to delete this pet?')) return;
+      pets = pets.filter(p => p.id !== id);
+      savePets();
+      updateRelationshipSelect();
+      renderTree();
+    }
+
+    function clearAllData() {
+      if (!confirm('Clear ALL pet data? This cannot be undone.')) return;
+      pets = [];
+      nextId = 1;
+      savePets();
+      updateRelationshipSelect();
+      renderTree();
+    }
+
+    function clearForm() {
+      document.getElementById('petName').value = '';
+      document.getElementById('petBreed').value = '';
+      document.getElementById('petBirthDate').value = '';
+      document.getElementById('relationshipTo').value = '';
+      document.getElementById('relationshipType').value = 'parent';
+      document.getElementById('petNotes').value = '';
+    }
+
+    // Initial setup
+    updateRelationshipSelect();
+    renderTree();
+  </script>
+</body>
+</html>
